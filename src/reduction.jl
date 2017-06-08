@@ -22,8 +22,7 @@ function reduction_op(f, j=f, o...)
         @eval begin
             # Array->Scalar reduction:
             function $J(x::KnetArray{$T})
-                y=ccall(($F20,$libknet8),$T,(Cint,Ptr{$T}),length(x),x) # do not use @knet8, return not Void
-                @gs; return y
+                ccall(($F20,$libknet8),$T,(Cint,Ptr{$T}),length(x),x)
             end
             # Array->Vector reduction:
             function $J(x::KnetArray{$T}, region)
@@ -45,7 +44,7 @@ function reduction_op(f, j=f, o...)
                     end
                     y = similar(x, ysize)
                     nx = length(x); ny = length(y); sy = stride(x,i0)
-                    @knet8($F21,(Cint,Ptr{$T},Cint,Cint,Ptr{$T}),nx,x,sy,ny,y)
+                    ccall(($F21,$libknet8),Void,(Cint,Ptr{$T},Cint,Cint,Ptr{$T}),nx,x,sy,ny,y)
                     return y
                 else
                     error("Only scalar and vector reductions supported: $((size(x),region))")
@@ -132,4 +131,3 @@ end
 
 # @primitive xentloss(x,p,d...),dy,y  (dy.*xentback(x,p,d...))
 
-Base.mean(a::KnetArray)=sum(a)/length(a)

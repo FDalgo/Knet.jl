@@ -6,7 +6,7 @@ using Knet: reduction_ops
 # CUBLAS nrm2 is extremely slow.  The following is based on code from Barret Zoph.
 # Based on: http://developer.download.nvidia.com/compute/cuda/1.1-Beta/x86_website/projects/reduction/doc/reduction.pdf
 
-function cuda20src(f, j, op, f1, v0; BLK=128, THR=128)
+function cuda20src(f, j, op, f1, v0; BLK=64, THR=64)
     sprint() do s
         for (T,F) in [("float","$(f)_32"),("double","$(f)_64")]
             print(s,
@@ -40,14 +40,14 @@ __global__ void _$(F)_20_1(int n, $T *x, $T *y) {
   __syncthreads();
 
   // help sum the entries in the block
-  for(int stride=$THR/2; stride>32; stride>>=1) { 
+  for(int stride=$THR/2; stride>32; stride>>=1) {
     if(tid < stride) {
       ai=buffer[tid]; xi=buffer[stride+tid]; buffer[tid]=$op;
     }
     __syncthreads();   // Q: can this be outside the for loop?
   }
 
-  if(tid<32) {  
+  if(tid<32) {
     _$(F)_20_0(buffer,tid);  // Inlining this does not work.
   }
   __syncthreads();
@@ -78,17 +78,23 @@ __global__ void _$(F)_20_2($T *y,$T *z) {   // sum block results in y
   }
 }
 
-extern "C" { $T $(F)_20(int n, $T *x) {
+#ifdef __cplusplus
+extern "C" {
+#endif
+$T $(F)_20(int n, $T *x) {
   $T r;
   static $T *y;
   static $T *z;
   if (y == NULL) cudaMalloc(&y, $BLK*sizeof($T)); // sum for each block
   if (z == NULL) cudaMalloc(&z, sizeof($T));      // final sum
   _$(F)_20_1<<<$BLK,$THR>>>(n,x,y);
-  _$(F)_20_2<<<1,$BLK>>>(y,z);                  
+  _$(F)_20_2<<<1,$BLK>>>(y,z);
   cudaMemcpy(&r,z,sizeof($T),cudaMemcpyDeviceToHost);
   return r;
-}}
+}
+#ifdef __cplusplus
+}
+#endif
 
 """)
         end

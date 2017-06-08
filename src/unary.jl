@@ -7,6 +7,7 @@
 unary_ops = [
 ("abs2", "abs2", "(xi*xi)"),
 ("abs", "abs", "(xi<0?-xi:xi)"),
+("htanh", "htanh", "(xi<-1?-1 : (xi > 1 ? 1 :xi))"),
 "acos",
 "acosh",
 "asin",
@@ -50,6 +51,7 @@ unary_ops = [
 # "normcdfinv",
 # "rcbrt",
 ("relu", "relu", "(xi>0?xi:0)"),
+("lzorelu", "lzorelu", "(xi<1e-6?1e-6:xi)"),
 # "rint",
 "round",
 # "rsqrt",
@@ -65,6 +67,10 @@ unary_ops = [
 "trunc",
 # "y0",
 # "y1",
+("G", "G", "exp(-(xi*xi)/2) / 2.5066"),
+("H", "H", "0.5 * erfc(xi / 1.4142)"),
+("GH", "GH", "xi > 30 ? xi + 1/xi * (1 - 2/(xi*xi) * (1 - 5/(xi*xi) * (1 - 7.4/(xi*xi)))) : exp(-(xi*xi)/2) / (1.2533 * erfc(xi / 1.4142))"),
+"atanh2Hm1",
 ]
 
 function unary_op(f, j=f, o...)
@@ -76,7 +82,7 @@ function unary_op(f, j=f, o...)
         @eval begin
             function $J(x::KnetArray{$T})
                 y = similar(x)
-                @knet8($F,(Cint,Ptr{$T},Ptr{$T}),length(y),x,y)
+                ccall(($F,$libknet8),Void,(Cint,Ptr{$T},Ptr{$T}),length(y),x,y)
                 return y
             end
         end
@@ -96,7 +102,8 @@ for (f,g,y,dx) in
     ((:invx, :invxback, :(one(T)/xi), :(-yi*yi*dyi)),
      (:relu, :reluback, :(max(zero(T),xi)), :(ifelse(yi>0,dyi,zero(T)))),
      (:tanx, :tanhback, :(tanh(xi)), :(dyi*(one(T)-yi*yi))),
-     (:sigm, :sigmback, 
+     (:htanx, :htanhback, :(htanh(xi)), :(dyi*(-1.0<=yi<=1.0))),
+     (:sigm, :sigmback,
       # Numerically stable implementation from
       # http://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick
       :(if xi>=0; z=exp(-xi); one(T)/(one(T)+z); else; z=exp(xi); z/(one(T)+z); end),
@@ -170,16 +177,8 @@ function logp(x,d...)
     elseif isempty(x)
         return x
     else
-        # x = x .- maximum(x,d...)
-        # return (x .- log(sum(exp(x),d...)))
-        # Expanding for profiling:
-        x1 = maximum(x,d...)
-        x2 = x .- x1
-        x3 = exp(x2)
-        x4 = sum(x3,d...)
-        x5 = log(x4)
-        x6 = x2 .- x5
-        return x6
+        x = x .- maximum(x,d...)
+        return (x .- log(sum(exp(x),d...)))
     end
 end
 
@@ -190,97 +189,9 @@ function logpback(x,y,dy,d...)
     elseif isempty(x)
         return x
     else
-        # return (dy - exp(y).*sum(dy,d...))
-        # Expanding for profiling:
-        dx1 = sum(dy,d...)
-        dx2 = exp(y)
-        dx3 = dx2 .* dx1
-        dx4 = dy - dx3
-        return dx4
+        return (dy - exp(y).*sum(dy,d...))
     end
 end
 
 # dy should be -p and y=logq so this should give us -p+q
 @primitive  logp(x,d...),dy,y  logpback(x,y,dy,d...)
-
-
-for S in (32,64)
-    T = Symbol("Float$S")
-    forw = Symbol("dropout_$S")
-    back = Symbol("dropback_$S")
-    @eval begin
-        function dropout!(p::Number, x::KnetArray{$T}, y::KnetArray{$T})
-            rand!(y)
-            @knet8($forw,(Cint,$T,Ptr{$T},Ptr{$T}),length(y),$T(p),x,y)
-            return y
-        end
-        function dropback!(p::Number, x::KnetArray{$T}, y::KnetArray{$T}, dy::KnetArray{$T}, dx::KnetArray{$T})
-            @knet8($back,(Cint,$T,Ptr{$T},Ptr{$T},Ptr{$T},Ptr{$T}),length(dx),$T(p),x,y,dy,dx)
-            return dx
-        end
-    end
-end
-
-function dropout!(p,x,y)
-    rand!(y)
-    p = convert(eltype(y),p)
-    q = 1-p
-    @inbounds for i=1:length(y)
-        if y[i] > p
-            y[i] = x[i] / q
-        else
-            y[i] = 0
-        end
-    end
-    return y
-end
-
-function dropback!(p,x,y,dy,dx)
-    p = convert(eltype(y),p)
-    q = 1-p
-    @inbounds for i=1:length(dx)
-        if y[i] == 0
-            dx[i] = 0
-        else
-            dx[i] = dy[i] / q
-        end
-    end
-    return dx
-end
-
-"""
-    dropout(x, p; seed=0)
-
-Given an array `x` and probability `0<=p<=1`, return an array `y` in
-which each element is 0 with probability `p` or `x[i]/(1-p)` with
-probability `1-p`.  See [(Srivastava et al. 2014)](http://jmlr.org/papers/v15/srivastava14a.html) for a reference.
-
-"""
-function dropout(x,p; seed=0)
-    if 0 < p < 1
-        if seed != 0; setseed(seed); end
-        dropout!(p,x,similar(x))
-    elseif p == 0
-        x
-    elseif p == 1
-        zeros(x)
-    else
-        error("Dropout probability not in [0:1]: $p")
-    end
-end
-
-function dropback(x,p,y,dy)
-    if 0 < p < 1
-        dropback!(p,x,y,dy,similar(x))
-    elseif p == 0
-        dy
-    elseif p == 1
-        zeros(x)
-    else
-        error("Dropout probability not in [0:1]: $p")
-    end
-end
-
-@primitive dropout(x,p;o...),dy,y dropback(x,p,y,dy)
-@zerograd dropback(x,p,y,dy)
-

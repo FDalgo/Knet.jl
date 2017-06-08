@@ -3,65 +3,13 @@ for p in ("Knet","ArgParse")
 end
 
 """
-
 LinReg is a simple linear regression example using artificially
-generated data. You can run the demo using `julia linreg.jl` on the
-command line or `julia> LinReg.main()` at the Julia prompt.  Use
-`julia linreg.jl --help` or `julia> LinReg.main("--help")` for a list
-of options.  The quadratic loss will be printed at every epoch and
-optimized parameters will be returned.
-
+generated data. You can run the demo using `julia linreg.jl`.  The
+quadratic loss will be printed at every epoch and optimized parameters
+will be returned.  Use `julia linreg.jl --help` for a list of options.
 """
 module LinReg
 using Knet, ArgParse
-
-
-predict(w,x)=(w*x)
-
-loss(w,x,y)=(sum(abs2(y-predict(w,x))) / size(x,2))
-
-lossgradient = grad(loss)
-
-function train(w, data; lr=.02, epochs=10)
-    for epoch=1:epochs
-        for (x,y) in data
-            g = lossgradient(w, x, y)
-            w -= lr * g
-        end
-    end
-    return w
-end
-
-function test(w, data)
-    sumloss = numloss = 0
-    for (x,y) in data
-        sumloss += loss(w,x,y)
-        numloss += 1
-    end
-    return sumloss/numloss
-end
-
-
-# Data generator:
-
-import Base: start, next, done
-
-type Data; w; batchsize; epochsize; noise; rng; atype; end
-
-function Data(outputdims,inputdims; batchsize=20, epochsize=10000, noise=.01, rng=Base.GLOBAL_RNG, atype=Array)
-    Data(convert(atype, randn(rng,outputdims,inputdims)),batchsize,epochsize,noise,rng,atype)
-end
-
-function next(l::Data, n)
-    (outputdims, inputdims) = size(l.w)
-    x = convert(l.atype, rand(l.rng, inputdims, l.batchsize))
-    y = l.w * x + convert(l.atype, l.noise * randn(l.rng, outputdims, l.batchsize))
-    return ((x,y), n+l.batchsize)
-end
-
-start(l::Data)=0
-done(l::Data,n)=(n >= l.epochsize)
-
 
 # Main loop:
 
@@ -99,21 +47,61 @@ function main(args=ARGS)
             w = train(w, data; epochs=1, lr=o[:lr])
             println((:epoch,epoch,:loss,test(w,data)))
             if o[:gcheck] > 0
-                gradcheck(loss, w, first(data)...; gcheck=o[:gcheck], verbose=true)
+                gradcheck(loss, w, first(data)...; gcheck=o[:gcheck])
             end
         end
     end
     return w
 end
 
+predict(w,x)=(w*x)
+
+loss(w,x,y)=(sum(abs2(y-predict(w,x))) / size(x,2))
+
+lossgradient = grad(loss)
+
+function train(w, data; lr=.02, epochs=10)
+    for epoch=1:epochs
+        for (x,y) in data
+            g = lossgradient(w, x, y)
+            w -= lr * g
+        end
+    end
+    return w
+end
+
+function test(w, data)
+    sumloss = numloss = 0
+    for (x,y) in data
+        sumloss += loss(w,x,y)
+        numloss += 1
+    end
+    return sumloss/numloss
+end
+
+# Data generator:
+import Base: start, next, done
+
+type Data; w; batchsize; epochsize; noise; rng; atype; end
+
+function Data(outputdims,inputdims; batchsize=20, epochsize=10000, noise=.01, rng=Base.GLOBAL_RNG, atype=Array)
+    Data(convert(atype, randn(rng,outputdims,inputdims)),batchsize,epochsize,noise,rng,atype)
+end
+
+function next(l::Data, n)
+    (outputdims, inputdims) = size(l.w)
+    x = convert(l.atype, rand(l.rng, inputdims, l.batchsize))
+    y = l.w * x + convert(l.atype, l.noise * randn(l.rng, outputdims, l.batchsize))
+    return ((x,y), n+l.batchsize)
+end
+
+start(l::Data)=0
+done(l::Data,n)=(n >= l.epochsize)
+
 # This allows both non-interactive (shell command) and interactive calls like:
 # $ julia linreg.jl --epochs 10
 # julia> LinReg.main("--epochs 10")
-if VERSION >= v"0.5.0-dev+7720"
-    PROGRAM_FILE == "linreg.jl" && main(ARGS)
-else
-    !isinteractive() && !isdefined(Core.Main,:load_only) && main(ARGS)
-end
+!isinteractive() && !isdefined(Core.Main,:load_only) && main(ARGS)
 
 end
 

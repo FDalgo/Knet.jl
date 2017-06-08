@@ -2,7 +2,7 @@ for p in ("Knet","ArgParse")
     Pkg.installed(p) == nothing && Pkg.add(p)
 end
 using Knet
-!isdefined(:MNIST) && include(Knet.dir("examples","mnist.jl"))
+!isdefined(:MNIST) && (local lo=isdefined(:load_only); load_only=true; include(Knet.dir("examples","mnist.jl")); load_only=lo)
 
 
 """
@@ -18,8 +18,8 @@ and optimized parameters will be returned.
 
 """
 module Optimizers
-using Knet,ArgParse,Main
-using MNIST: minibatch, accuracy
+using Knet,ArgParse
+using Main.MNIST: minibatch, accuracy, xtrn, ytrn, xtst, ytst
 
 function main(args=ARGS)
     s = ArgParseSettings()
@@ -35,7 +35,6 @@ function main(args=ARGS)
 	("--beta1"; arg_type=Float64; default=0.9; help="beta1 parameter used in adam")
 	("--beta2"; arg_type=Float64; default=0.95; help="beta2 parameter used in adam")
         ("--epochs"; arg_type=Int; default=10; help="number of epochs for training")
-        ("--iters"; arg_type=Int; default=6000; help="number of updates for training")
 	("--optim"; default="Sgd"; help="optimization method (Sgd, Momentum, Adam, Adagrad, Adadelta, Rmsprop)")
     end
     println(s.description)
@@ -45,34 +44,30 @@ function main(args=ARGS)
     o[:seed] > 0 && srand(o[:seed])
     gpu() >= 0 || error("LeNet only works on GPU machines.")
 
-    isdefined(MNIST,:xtrn) || MNIST.loaddata()
-    dtrn = minibatch4(MNIST.xtrn, MNIST.ytrn, o[:batchsize])
-    dtst = minibatch4(MNIST.xtst, MNIST.ytst, o[:batchsize])
+    dtrn = minibatch4(xtrn, ytrn, o[:batchsize])
+    dtst = minibatch4(xtst, ytst, o[:batchsize])
     w = weights()
     prms = params(w, o)
     
-    # log = Any[]
-    # report(epoch)=push!(log, (:epoch,epoch,:trn,accuracy(w,dtrn,predict),:tst,accuracy(w,dtst,predict)))
-    report(epoch)=println((:epoch,epoch,:trn,accuracy(w,dtrn,predict),:tst,accuracy(w,dtst,predict)))
+    log = Any[]
+    report(epoch)=push!(log, (:epoch,epoch,:trn,accuracy(w,dtrn,predict),:tst,accuracy(w,dtst,predict)))
+
     report(0)
-    iters = o[:iters]
     @time for epoch=1:o[:epochs]
-	train(w, prms, dtrn; epochs=1, iters=iters)
-	report(epoch)
-        (iters -= length(dtrn)) <= 0 && break
+	    train(w, prms, dtrn; lr=o[:lr], epochs=1)
+	    report(epoch)
     end
 
-    # for t in log; println(t); end
+    for t in log; println(t); end
     return w
 end
 
-function train(w, prms, data; epochs=10, iters=6000)
+function train(w, prms, data; lr=.1, epochs=20, nxy=0)
     for epoch=1:epochs
         for (x,y) in data
             g = lossgradient(w, x, y)
-            update!(w, g, prms)
-            if (iters -= 1) <= 0
-                return w
+            for i in 1:length(w)
+		    w[i], prms[i] = update!(w[i], g[i], prms[i])
             end
         end
     end
@@ -81,7 +76,7 @@ end
 
 function predict(w,x,n=length(w)-4)
     for i=1:2:n
-        x = pool(relu(conv4(w[i],x; padding=0) .+ w[i+1]))
+        x = pool(relu(conv4(w[i],x) .+ w[i+1]))
     end
     x = mat(x)
     for i=n+1:2:length(w)-2
@@ -120,15 +115,15 @@ function params(ws, o)
 		if o[:optim] == "Sgd"
 			prm = Sgd(;lr=o[:lr])
 		elseif o[:optim] == "Momentum"
-			prm = Momentum(lr=o[:lr], gamma=o[:gamma])
+			prm = Momentum(w; lr=o[:lr], gamma=o[:gamma])
 		elseif o[:optim] == "Adam"
-			prm = Adam(lr=o[:lr], beta1=o[:beta1], beta2=o[:beta2], eps=o[:eps])
+			prm = Adam(w; lr=o[:lr], beta1=o[:beta1], beta2=o[:beta2], eps=o[:eps])
 		elseif o[:optim] == "Adagrad"
-			prm = Adagrad(lr=o[:lr], eps=o[:eps])
+			prm = Adagrad(w; lr=o[:lr], eps=o[:eps])
 		elseif o[:optim] == "Adadelta"
-			prm = Adadelta(lr=o[:lr], rho=o[:rho], eps=o[:eps])
+			prm = Adadelta(w; lr=o[:lr], rho=o[:rho], eps=o[:eps])
 		elseif o[:optim] == "Rmsprop"
-			prm = Rmsprop(lr=o[:lr], rho=o[:rho], eps=o[:eps])
+			prm = Rmsprop(w; lr=o[:lr], rho=o[:rho], eps=o[:eps])
 		else
 			error("Unknown optimization method!")
 		end
@@ -169,11 +164,7 @@ end
 # This allows both non-interactive (shell command) and interactive calls like:
 # $ julia optimizers.jl --epochs 10
 # julia> Optim.main("--epochs 10")
-if VERSION >= v"0.5.0-dev+7720"
-    PROGRAM_FILE == "optimizers.jl" && main(ARGS)
-else
-    !isinteractive() && !isdefined(Core.Main,:load_only) && main(ARGS)
-end
+!isinteractive() && (!isdefined(Main,:load_only) || !Main.load_only) && main(ARGS)
 
 end # module
 

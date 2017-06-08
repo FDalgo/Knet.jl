@@ -3,10 +3,6 @@ VERSION >= v"0.4.0-dev+6521" && __precompile__()
 module Knet
 using Compat
 
-# utilities for debugging and profiling.
-macro dbg(i,x); if i & 0 != 0; esc(:(println(_dbg($x)))); end; end;
-macro gs(); if false; esc(:(ccall(("cudaDeviceSynchronize","libcudart"),UInt32,()))); end; end
-
 const libknet8 = Libdl.find_library(["libknet8.so"], [dirname(@__FILE__)])
 
 using AutoGrad; export grad, gradloss, gradcheck, getval
@@ -14,15 +10,14 @@ using AutoGrad; export grad, gradloss, gradcheck, getval
 include("gpu.jl");              export gpu
 include("kptr.jl");             # KnetPtr
 include("karray.jl");           export KnetArray
-include("unary.jl");            export relu, sigm, invx, logp, dropout
+include("unary.jl");            export relu, sigm, invx, logp, htanh
 include("broadcast.jl");        # elementwise broadcasting operations
 include("reduction.jl");        export logsumexp
 include("linalg.jl");           export mat # matmul, axpy!, transpose, (i)permutedims
 include("conv.jl");             export conv4, pool, deconv4, unpool
 include("update.jl"); 		export Sgd, Momentum, Adam, Adagrad, Adadelta, Rmsprop, update!
 include("distributions.jl"); 	export gaussian, xavier, bilinear
-include("random.jl");           export setseed
-include("hyperopt.jl");         export hyperband, goldensection
+
 
 """
     Knet.dir(path...)
@@ -42,10 +37,10 @@ dir(path...) = joinpath(dirname(dirname(@__FILE__)),path...)
 function __init__()
     try
         r = gpu(true)
-        # info(r >= 0 ? "Knet using GPU $r" : "No GPU found, Knet using the CPU")
+        info(r >= 0 ? "Knet using GPU $r" : "No GPU found, Knet using the CPU")
     catch e
+        warn("Knet using the CPU: $e")
         gpu(false)
-        # warn("Knet using the CPU: $e")
     end
 end
 

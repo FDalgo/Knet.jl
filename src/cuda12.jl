@@ -9,7 +9,7 @@
 
 using Knet: broadcast_ops
 
-function cuda12src(f, j=f, ex="$f(xi,yi)"; BLK=256, THR=256)
+function cuda12src(f, j=f, ex="$f(xi,yi)"; BLK=128, THR=128)
   sprint() do s
     for (T,F) in [("float","$(f)_32"),("double","$(f)_64")]
         print(s,
@@ -23,11 +23,15 @@ __global__ void _$(F)_12(int n, $T *x, int sx, int nx, $T *y, int sy, int ny, $T
     i += blockDim.x * gridDim.x;
   }
 }
+#ifdef __cplusplus
 extern "C" {
+#endif
   void $(F)_12(int n, $T *x, int sx, int nx, $T *y, int sy, int ny, $T *z) {
     _$(F)_12<<<$BLK,$THR>>>(n,x,sx,nx,y,sy,ny,z);
-  }    
+  }
+#ifdef __cplusplus
 }
+#endif
 """)
     end
   end

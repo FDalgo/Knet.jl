@@ -1,9 +1,8 @@
 try success(`nvcc --version`)
-    info("Compiling CUDA kernels.")
+    cd("../src") do
+        run(`make libknet8.so`)
+    end
 catch
-    warn("Cannot find nvcc, GPU support will not be available.")
-end
-cd("../src") do
-    run(`make`)
+    warn("CUDA not installed, GPU support will not be available.")
 end
 Base.compilecache("Knet")

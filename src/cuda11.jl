@@ -3,7 +3,7 @@
 
 using Knet: broadcast_ops
 
-function cuda11src(f, j=f, ex="$f(xi,yi)"; BLK=256, THR=256)
+function cuda11src(f, j=f, ex="$f(xi,yi)"; BLK=128, THR=128)
   sprint() do s
     for (T,F) in [("float","$(f)_32"),("double","$(f)_64")]
         print(s,
@@ -17,11 +17,15 @@ __global__ void _$(F)_11(int n, $T *x, $T *y, $T *z) {
     i += blockDim.x * gridDim.x;
   }
 }
+#ifdef __cplusplus
 extern "C" {
+#endif
   void $(F)_11(int n, $T *x, $T *y, $T *z) {
     _$(F)_11<<<$BLK,$THR>>>(n,x,y,z);
-  }    
+  }
+#ifdef __cplusplus
 }
+#endif
 """)
     end
   end

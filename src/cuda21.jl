@@ -2,7 +2,7 @@
 
 using Knet: reduction_ops
 
-function cuda21src(f, j, op, f1, v0; BLK=128, THR=128) # BLK not used, determined by ny
+function cuda21src(f, j, op, f1, v0; BLK=64, THR=64) # BLK not used, determined by ny
     sprint() do s
         for (T,F) in [("float","$(f)_32"),("double","$(f)_64")]
             print(s,
@@ -46,14 +46,14 @@ __global__ void _$(F)_21(int nx, $T *x, int sy, int ny, $T *y) {
   __syncthreads();
 
   // help sum the entries in the block
-  for(int stride=$THR/2; stride>32; stride>>=1) { 
+  for(int stride=$THR/2; stride>32; stride>>=1) {
     if(t < stride) {
       ai=buffer[t]; xi=buffer[stride+t]; buffer[t]=$op;
     }
     __syncthreads();   // Q: can this be outside the for loop?
   }
 
-  if(t<32) {  
+  if(t<32) {
     _$(F)_21_0(buffer,t);  // This reuses warpSum from 20 scalar reduction.
   }
   __syncthreads();
@@ -63,12 +63,17 @@ __global__ void _$(F)_21(int nx, $T *x, int sy, int ny, $T *y) {
   }
 }
 
-extern "C" { void $(F)_21(int nx, $T *x, int sy, int ny, $T *y) {
+#ifdef __cplusplus
+extern "C" {
+#endif
+  void $(F)_21(int nx, $T *x, int sy, int ny, $T *y) {
   // x[i] goes into y[(i/sy)%ny]
   //  _$(F)_21<<<$BLK,$THR>>>(nx,x,sy,ny,y);
   _$(F)_21<<<ny,$THR>>>(nx,x,sy,ny,y);
-}}
-
+}
+#ifdef __cplusplus
+}
+#endif
 """)
         end
     end

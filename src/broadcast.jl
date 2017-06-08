@@ -35,6 +35,7 @@ broadcast_ops = [
 ("sigmback","sigmback","(xi*yi*(1-yi))"),
 ("tanhback","tanhback","(xi*(1-yi*yi))"),
 ("rpow","rpow","pow(yi,xi)"),   # need this for Array.^Scalar
+"BGH",
 ]
 
 # broadcast_op overloads a Julia function for KnetArrays.
@@ -50,25 +51,25 @@ function broadcast_op(f, j=f, o...)
         @eval begin
             function $J(x::$T,y::KnetArray{$T})
                 z = similar(y)
-                @knet8($F01,(Cint,$T,Ptr{$T},Ptr{$T}),length(z),x,y,z)
+                ccall(($F01,$libknet8),Void,(Cint,$T,Ptr{$T},Ptr{$T}),length(z),x,y,z)
                 return z
             end
             function $J(x::KnetArray{$T},y::KnetArray{$T})
                 if size(x)==size(y)
                     z = similar(x)
-                    @knet8($F11,(Cint,$Ptr{$T},Ptr{$T},Ptr{$T}),length(z),x,y,z)
+                    ccall(($F11,$libknet8),Void,(Cint,$Ptr{$T},Ptr{$T},Ptr{$T}),length(z),x,y,z)
                     return z
                 else
                     (dz,sx,nx,sy,ny) = vbroadcast_shape(x,y)
                     z = similar(x,dz)
-                    @knet8($F12,(Cint,$Ptr{$T},Cint,Cint,Ptr{$T},Cint,Cint,Ptr{$T}),length(z),x,sx,nx,y,sy,ny,z)
+                    ccall(($F12,$libknet8),Void,(Cint,$Ptr{$T},Cint,Cint,Ptr{$T},Cint,Cint,Ptr{$T}),length(z),x,sx,nx,y,sy,ny,z)
                     return z
                 end
             end
         end
     end
 end
-    
+
 # vbroadcast_shape computes index/offset arguments for a broadcasting kernel call.
 function vbroadcast_shape(x,y)
     nz = max(ndims(x),ndims(y))
@@ -194,4 +195,3 @@ min{T}(s::Number,a::KnetArray{T})=min(T(s),a)
 #(/){T}(s::Number,a::KnetArray{T})=(.*)(T(1/s),a) # not defined in base
 #(^){T}(a::KnetArray{T},s::Number)=(.^)(a,T(s)) # linalg
 #(^){T}(s::Number,a::KnetArray{T})=(.^)(T(s),a) # linalg
- 
