@@ -22,25 +22,25 @@ libknet8.so: $(OBJ)
 %.o: %.cpp
 	$(CXX) -c $(CFLAGS) $< -o $@
 
-cuda1.cu: cuda1.jl unary.jl
-	julia $< > $@
+#cuda1.cu: cuda1.jl unary.jl
+#	julia $< > $@
 
-cuda01.cu: cuda01.jl broadcast.jl
-	julia $< > $@
+#cuda01.cu: cuda01.jl broadcast.jl
+#	julia $< > $@
 
-cuda11.cu: cuda11.jl broadcast.jl
-	julia $< > $@
+#cuda11.cu: cuda11.jl broadcast.jl
+#	julia $< > $@
 
-cuda12.cu: cuda12.jl broadcast.jl
-	julia $< > $@
+#cuda12.cu: cuda12.jl broadcast.jl
+#	julia $< > $@
 
-cuda20.cu: cuda20.jl reduction.jl
-	julia $< > $@
+#cuda20.cu: cuda20.jl reduction.jl
+#	julia $< > $@
 
-cuda21.cu: cuda21.jl reduction.jl
-	julia $< > $@
+#cuda21.cu: cuda21.jl reduction.jl
+#	julia $< > $@
 
 clean:
-	-rm *.o *.cu libknet8.so
+	-rm *.o libknet8.so
 
 .PRECIOUS: %.cu
