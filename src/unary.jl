@@ -101,7 +101,7 @@ end
 for (f,g,y,dx) in
     ((:invx, :invxback, :(one(T)/xi), :(-yi*yi*dyi)),
      (:relu, :reluback, :(max(zero(T),xi)), :(ifelse(yi>0,dyi,zero(T)))),
-     (:H, :G, :(H(xi)), :(dyi*G(xi))),
+     #(:H, :G, :(H(xi)), :(dyi*G(xi))),
      (:tanx, :tanhback, :(tanh(xi)), :(dyi*(one(T)-yi*yi))),
      (:htanx, :htanhback, :(htanh(xi)), :(dyi*(-1.0<=yi<=1.0))),
      (:sigm, :sigmback,
@@ -142,6 +142,7 @@ end
 @primitive tanh(x::Array),dy,y     tanhback(dy,y)
 @primitive tanh(x::KnetArray),dy,y tanhback(dy,y)
 @primitive tanhback(dy,y),ddx  ddx.*(1.-y.*y)  ddx.*(-2.*dy.*y)
+@primitive H(x),dy dy*G(x)
 
 
 """
