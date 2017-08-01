@@ -101,7 +101,7 @@ end
 for (f,g,y,dx) in
     ((:invx, :invxback, :(one(T)/xi), :(-yi*yi*dyi)),
      (:relu, :reluback, :(max(zero(T),xi)), :(ifelse(yi>0,dyi,zero(T)))),
-     (:H, :Hback, :(H(xi)), :(G(xi)),
+     (:H, :Hback, :(H(xi)), :(G(xi))),
      (:tanx, :tanhback, :(tanh(xi)), :(dyi*(one(T)-yi*yi))),
      (:htanx, :htanhback, :(htanh(xi)), :(dyi*(-1.0<=yi<=1.0))),
      (:sigm, :sigmback,
