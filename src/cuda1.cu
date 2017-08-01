@@ -1430,7 +1430,7 @@ __global__ void _G_32(int n, float *x, float *y) {
   int i = threadIdx.x + blockIdx.x * blockDim.x;
   while (i < n) {
     float xi = x[i];
-    y[i] = exp(-(xi*xi)/2) / 2.5066;
+    y[i] = exp(-(xi*xi)*0.5)*0.3989423;
     i += blockDim.x * gridDim.x;
   }
 }
@@ -1447,7 +1447,7 @@ __global__ void _G_64(int n, double *x, double *y) {
   int i = threadIdx.x + blockIdx.x * blockDim.x;
   while (i < n) {
     double xi = x[i];
-    y[i] = exp(-(xi*xi)/2) / 2.5066;
+    y[i] = exp(-(xi*xi)*0.5) *0.3989422804014327;
     i += blockDim.x * gridDim.x;
   }
 }
@@ -1464,7 +1464,7 @@ __global__ void _H_32(int n, float *x, float *y) {
   int i = threadIdx.x + blockIdx.x * blockDim.x;
   while (i < n) {
     float xi = x[i];
-    y[i] = 0.5 * erfc(xi / 1.4142);
+    y[i] = 0.5 * erfc(xi *0.70710677);
     i += blockDim.x * gridDim.x;
   }
 }
@@ -1481,7 +1481,7 @@ __global__ void _H_64(int n, double *x, double *y) {
   int i = threadIdx.x + blockIdx.x * blockDim.x;
   while (i < n) {
     double xi = x[i];
-    y[i] = 0.5 * erfc(xi / 1.4142);
+    y[i] = 0.5 * erfc(xi*0.7071067811865475);
     i += blockDim.x * gridDim.x;
   }
 }
@@ -1498,7 +1498,7 @@ __global__ void _GH_32(int n, float *x, float *y) {
   int i = threadIdx.x + blockIdx.x * blockDim.x;
   while (i < n) {
     float xi = x[i];
-    y[i] = xi > 30 ? xi + 1/xi * (1 - 2/(xi*xi) * (1 - 5/(xi*xi) * (1 - 7.4/(xi*xi)))) : exp(-(xi*xi)/2) / (1.2533 * erfc(xi / 1.4142));
+    y[i] = xi > 30 ? xi + 1/xi * (1 - 2/(xi*xi) * (1 - 5/(xi*xi) * (1 - 7.4/(xi*xi)))) : 0.7978846 * exp(-(xi*xi)*0.5) / (erfc(xi *0.70710677));
     i += blockDim.x * gridDim.x;
   }
 }
