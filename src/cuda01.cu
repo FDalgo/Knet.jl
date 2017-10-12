@@ -625,17 +625,17 @@ __global__ void _BGH_32_01(int n, float *x, int sx, int nx, float *y, int sy, in
     //float part1 = exp(-(xi*xi)/2) / (1.2533 * erfc(xi / 1.4142));
     if (xi > 1e6) /*like say infty*/
     {
-      z[i] = sign * sqrt(2/3.1415) * (exp(-yi*yi/2)) / erfc(yi/sqrt(2.0));
+      z[i] = sign * 0.7978846 * (exp(-yi*yi*0.5)) / erfc(yi*0.70710677);
     }
     else if (xi > 15)
     {
 
-      z[i] = sign * sqrt(2/3.1415) * (exp(-yi*yi/2)) / erfc(yi/sqrt(2.0)) / (1 + exp(-2*xi - log(0.5 * erfc(yi / 1.4142))));
+      z[i] = sign * 0.7978846 * (exp(-yi*yi*0.5)) / erfc(yi*0.70710677) / (1.0 + exp(-2.0*xi - log(0.5 * erfc(yi*0.70710677))));
     }
     else
     {
       //float hx = exp(-(yi*yi)/2);
-      z[i] =sign * (exp(-yi*yi/2)) / (sqrt(2*3.1415) * (1/expm1f(2*xi) + 0.5*erfc(yi/sqrt(2.0))));
+      z[i] =sign * (exp(-yi*yi*0.5)) / (2.5066283 * (1.0/expm1f(2.0*xi) + 0.5*erfc(yi*0.70710677)));
     }
     i += blockDim.x * gridDim.x;
   }
@@ -661,19 +661,20 @@ __global__ void _BGH_64_01(int n, double *x, int sx, int nx, double *y, int sy, 
       yi = -yi;
       sign = -1.0;
     }
-    double part1 = exp(-(xi*xi)/2) / (1.2533 * erfc(xi / 1.4142));
+    //float part1 = exp(-(xi*xi)/2) / (1.2533 * erfc(xi / 1.4142));
     if (xi > 1e6) /*like say infty*/
     {
-      z[i] = sign * part1;
+      z[i] = sign * 0.7978845608028654 * (exp(-yi*yi*0.5)) / erfc(yi*0.7071067811865475);
     }
     else if (xi > 15)
     {
-      z[i] = sign * part1 * (1 + exp(-2*xi - log(0.5 * erfc(yi / 1.4142))));
+
+      z[i] = sign * 0.7978845608028654 * (exp(-yi*yi*0.5)) / erfc(yi*0.7071067811865475) / (1.0 + exp(-2.0*xi - log(0.5 * erfc(yi*0.7071067811865475))));
     }
     else
     {
-      double hx = exp(-(yi*yi)/2);
-      z[i] =sign * hx / (2.5066 * (1/expm1f(2*xi) + hx/ 2.5066));
+      //float hx = exp(-(yi*yi)/2);
+      z[i] =sign * (exp(-yi*yi*0.5)) / (2.5066282746310002 * (1.0/expm1f(2.0*xi) + 0.5*erfc(yi*0.7071067811865475)));
     }
     i += blockDim.x * gridDim.x;
   }
