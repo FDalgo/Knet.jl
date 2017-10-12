@@ -1534,7 +1534,7 @@ __global__ void _atanh2Hm1_32(int n, float *x, float *y) {
   while (i < n) 
   {
     float xi = x[i];
-    /*if (abs(xi) > 6)
+    if (abs(xi) > 6)
     {
 			float x2 = xi * xi;
       float x4 = x2 * x2;
@@ -1545,10 +1545,9 @@ __global__ void _atanh2Hm1_32(int n, float *x, float *y) {
   		y[i] = antisg * (408.1 / x10 - 44.125 /x8 + 37 /(6*x6) - 1.25 /x4 + 0.5 /x2 + 0.25*x2 + 0.459469 + 0.25*log(x2));
 		}
   	else
-		{*/
-			//float doubH = 0.79788456*exp(-xi*xi/2);
-    y[i] = atanh(erfc(xi/sqrt(2.0))-1);
-		//}
+		{
+    	y[i] = atanh(erfc(0.70710677*xi)-1.0);
+		}
     i += blockDim.x * gridDim.x;
   }
 	__syncthreads();
@@ -1567,7 +1566,7 @@ __global__ void _atanh2Hm1_64(int n, double *x, double *y) {
   while (i < n) 
   {
     double xi = x[i];
-		/*if (abs(xi) > 6)
+		if (abs(xi) > 6)
     {
 			double x2 = xi * xi;
       double x4 = x2 * x2;
@@ -1578,10 +1577,9 @@ __global__ void _atanh2Hm1_64(int n, double *x, double *y) {
   		y[i] = antisg * (408.1 / x10 - 44.125 /x8 + 37 /(6*x6) - 1.25 /x4 + 0.5 /x2 + 0.25*x2 + 0.459469 + 0.25*log(x2));
 		}
   	else
-		{*/
-		//	double doubH = 0.79788456*exp(-xi*xi/2);
-  		y[i] = atanh(erfc(xi/sqrt(2.0))-1);
-		//}
+		{
+  		y[i] = atanh(erfc(0.7071067811865475*xi)-1.0);
+		}
     i += blockDim.x * gridDim.x;
   }
 	__syncthreads();
