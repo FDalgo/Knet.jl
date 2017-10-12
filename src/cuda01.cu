@@ -615,25 +615,27 @@ __global__ void _BGH_32_01(int n, float *x, int sx, int nx, float *y, int sy, in
   while (i < n) {
     float xi = (nx==n ? x[i] : sx==1 ? x[i%nx] : nx==1 ? x[0] : x[(i/sx)%nx]);
     float yi = (ny==n ? y[i] : sy==1 ? y[i%ny] : ny==1 ? y[0] : y[(i/sy)%ny]);
+    float sign = 1.0;
     if (xi < 0.0)
     {
       xi = -xi;
       yi = -yi;
+      sign = -1.0;
     }
-    float part1 = exp(-(xi*xi)/2) / (1.2533 * erfc(xi / 1.4142));
+    //float part1 = exp(-(xi*xi)/2) / (1.2533 * erfc(xi / 1.4142));
     if (xi > 1e6) /*like say infty*/
     {
-      z[i] = part1;
+      z[i] = sign * sqrt(2/3.1415) * (exp(-yi*yi/2)) / erfc(yi/sqrt(2.0));
     }
     else if (xi > 15)
     {
 
-      z[i] = part1 * (1 + exp(-2*xi - log(0.5 * erfc(yi / 1.4142))));
+      z[i] = sign * sqrt(2/3.1415) * (exp(-yi*yi/2)) / erfc(yi/sqrt(2.0)) / (1 + exp(-2*xi - log(0.5 * erfc(yi / 1.4142))));
     }
     else
     {
-      float hx = exp(-(yi*yi)/2);
-      z[i] =hx / (2.5066 * (1/expm1f(2*xi) + hx/ 2.5066));
+      //float hx = exp(-(yi*yi)/2);
+      z[i] =sign * (exp(-yi*yi/2)) / (sqrt(2*3.1415) * (1/expm1f(2*xi) + 0.5*erfc(yi/sqrt(2.0))));
     }
     i += blockDim.x * gridDim.x;
   }
@@ -652,24 +654,26 @@ __global__ void _BGH_64_01(int n, double *x, int sx, int nx, double *y, int sy, 
   while (i < n) {
     double xi = (nx==n ? x[i] : sx==1 ? x[i%nx] : nx==1 ? x[0] : x[(i/sx)%nx]);
     double yi = (ny==n ? y[i] : sy==1 ? y[i%ny] : ny==1 ? y[0] : y[(i/sy)%ny]);
+    double sign = 1.0;
     if (xi < 0.0)
     {
       xi = -xi;
       yi = -yi;
+      sign = -1.0;
     }
     double part1 = exp(-(xi*xi)/2) / (1.2533 * erfc(xi / 1.4142));
     if (xi > 1e6) /*like say infty*/
     {
-      z[i] = part1;
+      z[i] = sign * part1;
     }
     else if (xi > 15)
     {
-      z[i] = part1 * (1 + exp(-2*xi - log(0.5 * erfc(yi / 1.4142))));
+      z[i] = sign * part1 * (1 + exp(-2*xi - log(0.5 * erfc(yi / 1.4142))));
     }
     else
     {
       double hx = exp(-(yi*yi)/2);
-      z[i] =hx / (2.5066 * (1/expm1f(2*xi) + hx/ 2.5066));
+      z[i] =sign * hx / (2.5066 * (1/expm1f(2*xi) + hx/ 2.5066));
     }
     i += blockDim.x * gridDim.x;
   }
